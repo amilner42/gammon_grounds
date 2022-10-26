@@ -8,7 +8,7 @@ defmodule GammonGroundsTest do
 
   test "no move is a legal move" do
     board = GammonBoard.new_board()
-    empty_move = GammonBoard.PlayerCheckerMoves.new(:player_1, [])
+    empty_move = GammonBoard.PlayerCheckerMoves.new(:player_1, [], [1, 2])
 
     assert GammonBoard.legal_move?(board, empty_move) == true
   end
@@ -17,7 +17,11 @@ defmodule GammonGroundsTest do
     board = GammonBoard.new_board()
 
     move_to_open_square =
-      GammonBoard.PlayerCheckerMoves.new(:player_1, [%GammonBoard.CheckerMove{from: 24, to: 23}])
+      GammonBoard.PlayerCheckerMoves.new(
+        :player_1,
+        [%GammonBoard.CheckerMove{from: 24, to: 23}],
+        [1, 2]
+      )
 
     assert GammonBoard.legal_move?(board, move_to_open_square) == true
   end
@@ -26,7 +30,11 @@ defmodule GammonGroundsTest do
     board = GammonBoard.new_board()
 
     move_checker_off_board =
-      GammonBoard.PlayerCheckerMoves.new(:player_1, [%GammonBoard.CheckerMove{from: 5, to: 0}])
+      GammonBoard.PlayerCheckerMoves.new(
+        :player_1,
+        [%GammonBoard.CheckerMove{from: 5, to: 0}],
+        [5, 3]
+      )
 
     assert GammonBoard.legal_move?(board, move_checker_off_board) == false
   end
@@ -35,7 +43,11 @@ defmodule GammonGroundsTest do
     board = GammonBoard.new_board()
 
     move_to_opponents_point =
-      GammonBoard.PlayerCheckerMoves.new(:player_1, [%GammonBoard.CheckerMove{from: 5, to: 1}])
+      GammonBoard.PlayerCheckerMoves.new(
+        :player_1,
+        [%GammonBoard.CheckerMove{from: 5, to: 1}],
+        [4, 2]
+      )
 
     assert GammonBoard.legal_move?(board, move_to_opponents_point) == false
   end

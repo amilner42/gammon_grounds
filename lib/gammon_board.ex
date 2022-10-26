@@ -44,7 +44,11 @@ defmodule GammonBoard do
           player_1_checker_count_by_point: player_1_checker_count_by_point,
           player_2_checker_count_by_point: player_2_checker_count_by_point
         },
-        %GammonBoard.PlayerCheckerMoves{player: player, checker_moves: checker_moves}
+        %GammonBoard.PlayerCheckerMoves{
+          player: player,
+          checker_moves: checker_moves,
+          dice_segments: dice_segments
+        }
       ) do
     # It is symmetrical, so we grab the respective player / opponent based on whether it is player_1 / player_2.
     {
@@ -84,7 +88,8 @@ defmodule GammonBoard do
       make_move_for_player(
         player_checker_count_by_point,
         opponent_checkers,
-        checker_moves
+        checker_moves,
+        dice_segments
       )
 
     case new_player_checker_count_by_point_result do
@@ -102,34 +107,48 @@ defmodule GammonBoard do
   # Module Private Functions
 
   # We did all the moves, success, wrap in :ok tuple.
-  defp make_move_for_player(player_checker_count_by_point, _opponent_checker_count_by_point, []) do
+  defp make_move_for_player(
+         player_checker_count_by_point,
+         _opponent_checker_count_by_point,
+         [],
+         _segments
+       ) do
     {:ok, player_checker_count_by_point}
   end
 
   defp make_move_for_player(
          player_checker_count_by_point,
          opponent_checker_count_by_point,
-         [%GammonBoard.CheckerMove{from: from, to: to} | remaining_checker_moves]
+         [%GammonBoard.CheckerMove{from: from, to: to} | remaining_checker_moves],
+         dice_segments
        ) do
     cond do
       !player_checker_count_by_point[from] ->
         {:error, :no_checker_on_that_point}
 
-      player_checker_count_by_point[25] && from !== 25 ->
+      player_checker_count_by_point[25] && from != 25 ->
         {:error, :you_must_move_off_your_checkers_off_the_bar}
 
       point_taken_by_opponent?(to, opponent_checker_count_by_point) ->
         {:error, :you_cannot_move_on_your_opponents_point}
 
-      to === 0 && !points_can_be_taken_off?(player_checker_count_by_point) ->
+      to == 0 && !points_can_be_taken_off?(player_checker_count_by_point) ->
         {:error,
          :you_cannot_take_your_checkers_off_until_all_your_checkers_are_in_your_home_board}
+
+      to != 0 && (from - to) not in dice_segments ->
+        {:error, :you_must_play_your_dice}
 
       true ->
         player_checker_count_by_point
         |> remove_checker_on_point(from)
         |> add_checker_on_point(to)
-        |> make_move_for_player(opponent_checker_count_by_point, remaining_checker_moves)
+        |> make_move_for_player(
+          opponent_checker_count_by_point,
+          remaining_checker_moves,
+          # This is wrong, but I will change implementation shortly. You must use your dice segments of course...
+          dice_segments
+        )
     end
   end
 
@@ -159,7 +178,7 @@ defmodule GammonBoard do
     opponent_point = convert_to_opposing_player_point_value(player_point)
     opponent_checker_count = opponent_checker_count_by_point[opponent_point]
 
-    opponent_checker_count !== nil && opponent_checker_count >= 2
+    opponent_checker_count != nil && opponent_checker_count >= 2
   end
 
   # Misc helpers
@@ -167,7 +186,7 @@ defmodule GammonBoard do
   defp remove_checker_on_point(player_checker_count_by_point, point) do
     current_point_value = player_checker_count_by_point[point]
 
-    if(current_point_value === 1) do
+    if(current_point_value == 1) do
       # We remove empty points from the map. We never keep 0.
       Map.delete(player_checker_count_by_point, point)
     else
