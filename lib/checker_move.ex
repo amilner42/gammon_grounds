@@ -1,4 +1,4 @@
-defmodule GammonBoard.CheckerMove do
+defmodule CheckerMove do
   defstruct from: nil, to: nil
 
   @doc """
@@ -11,6 +11,13 @@ defmodule GammonBoard.CheckerMove do
       when is_integer(from) and is_integer(to) and
              1 <= from and from <= 25 and
              0 <= to and to <= 24 do
-    %GammonBoard.CheckerMove{from: from, to: to}
+    %CheckerMove{from: from, to: to}
   end
+
+  def checker_moves_size(enumerable_checker_moves) do
+    Stream.map(enumerable_checker_moves, &size/1)
+    |> Enum.sum()
+  end
+
+  def size(%CheckerMove{from: from, to: to}), do: from - to
 end
