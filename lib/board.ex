@@ -13,7 +13,7 @@ defmodule Board do
   themselves, as is standard for backgammon, for instance, you will notice both players start with 2 points on their
   respective 24-point.
   """
-  def new_board(position \\ :standard_starting_position, player_to_move \\ @player_1) do
+  def new(position \\ :standard_starting_position, player_to_move \\ @player_1) do
     case position do
       :standard_starting_position ->
         %Board{

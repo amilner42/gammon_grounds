@@ -1,18 +1,11 @@
 defmodule GammonGrounds do
   @moduledoc """
-  Documentation for `GammonGrounds`.
+  The entry point for all your bg needs.
   """
 
-  @doc """
-  Hello world.
+  defdelegate new_board, to: Board, as: :new
+  defdelegate new_board(position), to: Board, as: :new
+  defdelegate legal_turn_move?(board, turn_move, dice_roll), to: Board
 
-  ## Examples
-
-      iex> GammonGrounds.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
+  defdelegate new_checker_move(from_point, to_point), to: CheckerMove, as: :new
 end
