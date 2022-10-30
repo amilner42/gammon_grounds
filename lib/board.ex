@@ -65,32 +65,28 @@ defmodule Board do
 
   # Module Private Functions
 
-  defp generate_all_legal_turn_moves(board, [die_1, die_1]), do: temp_function(board, [[die_1, die_1, die_1, die_1]])
-  defp generate_all_legal_turn_moves(board, [die_1, die_2]), do: temp_function(board, [[die_1, die_2], [die_2, die_1]])
+  defp generate_all_legal_turn_moves(board, [die_1, die_1]),
+    do: generate_all_legal_turn_moves(board, [[die_1, die_1, die_1, die_1]], [], MapSet.new())
 
-  defp temp_function(
-         board,
-         list_of_dice_segments,
-         list_of_board_and_moves \\ [],
-         all_possibly_legal_turn_moves_acc \\ MapSet.new()
-       )
+  defp generate_all_legal_turn_moves(board, [die_1, die_2]),
+    do: generate_all_legal_turn_moves(board, [[die_1, die_2], [die_2, die_1]], [], MapSet.new())
 
   # Exhausted the dice segments, just filter out moves that don't use as much of the roll as possible. This is a
   # a rule in the game of backgammon.
-  defp temp_function(_board, [[]], list_of_board_and_moves, all_possibly_legal_turn_moves_acc) do
+  defp generate_all_legal_turn_moves(_board, [[]], list_of_board_and_moves, all_possibly_legal_turn_moves_acc) do
     all_possibly_legal_turn_moves_acc
     |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
     |> keep_only_largest_turn_moves_in_turn_moves_set()
   end
 
   # Gone through one ordered die roll, save all possible moves and continue on the other.
-  defp temp_function(
+  defp generate_all_legal_turn_moves(
          board,
          [[], other_ordered_roll_segment],
          list_of_board_and_moves,
          all_possibly_legal_turn_moves_acc
        ) do
-    temp_function(
+    generate_all_legal_turn_moves(
       board,
       [other_ordered_roll_segment],
       [],
@@ -99,7 +95,7 @@ defmodule Board do
     )
   end
 
-  defp temp_function(
+  defp generate_all_legal_turn_moves(
          board,
          [[die_segment | remaining_die_segments] | other_ordered_roll_segment],
          list_of_board_and_moves,
@@ -107,7 +103,7 @@ defmodule Board do
        ) do
     if(list_of_board_and_moves == []) do
       # The first checker move for a series of segments, move it on the board and recurse.
-      temp_function(
+      generate_all_legal_turn_moves(
         board,
         [remaining_die_segments] ++ other_ordered_roll_segment,
         generate_all_move_and_board_combos_for_die_segment(board, die_segment),
@@ -137,7 +133,7 @@ defmodule Board do
           all_next_board_and_full_move_sequence_combos ++ new_list_of_board_and_moves_acc
         end)
 
-      temp_function(
+      generate_all_legal_turn_moves(
         board,
         [remaining_die_segments] ++ other_ordered_roll_segment,
         new_list_of_board_and_moves,
