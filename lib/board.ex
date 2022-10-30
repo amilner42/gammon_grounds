@@ -1,3 +1,12 @@
+# TODO:
+# - custom positions
+# - sanity tests
+# - no bearing off if a greater point is available but cannot move
+
+# Is this easy? I can also just manually sort and delete dups.
+# - more effecient with move creation, only search from highest move to lowest move to avoid dups of:
+#   [ 24 -> 23, 6 - 3 ] and [6 -> 3, 24 -> 23 ]
+
 defmodule Board do
   @player_1 :player_1
   @player_2 :player_2
@@ -60,84 +69,97 @@ defmodule Board do
 
   # Module Private Functions
 
-  defp generate_all_legal_turn_moves(board, dice_roll) do
-    dice_segments = Dice.convert_roll_to_segments(dice_roll)
+  defp generate_all_legal_turn_moves(board, [die_1, die_1]),
+    do: temp_function(board, [[die_1, die_1, die_1, die_1]])
 
-    if(Dice.double?(dice_roll)) do
-      generate_all_legal_turn_moves(board, dice_segments, :double)
-    else
-      generate_all_legal_turn_moves(board, dice_segments, :non_double)
-    end
+  defp generate_all_legal_turn_moves(board, [die_1, die_2]),
+    do: temp_function(board, [[die_1, die_2], [die_2, die_1]])
+
+  defp temp_function(
+         board,
+         list_of_dice_segments,
+         list_of_board_and_moves \\ [],
+         all_possibly_legal_turn_moves_acc \\ MapSet.new()
+       )
+
+  # Exhausted the dice segments, just filter out moves that don't use as much of the roll as possible. This is a
+  # a rule in the game of backgammon.
+  defp temp_function(
+         _board,
+         [[]],
+         list_of_board_and_moves,
+         all_possibly_legal_turn_moves_acc
+       ) do
+    all_possibly_legal_turn_moves_acc
+    |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
+    |> keep_only_largest_turn_moves_in_turn_moves_set()
   end
 
-  # TODO DOC
-  defp generate_all_legal_turn_moves(board, dice_segments, :double) do
-    # pseudo code:
-    # go through all of player_to_moves points.
-    # try to move each available point a dice_segment distance.
-    #   if not possible, carry on to next point.
-    #   if possible,
-
-    MapSet.new()
-  end
-
-  # TODO DOC
-  defp generate_all_legal_turn_moves(board, [die_1, die_2], :non_double) do
-    # USe a helper to get all the moves starting with each die.
-    all_possibly_legal_turn_moves =
-      MapSet.union(
-        generate_all_possibly_legal_turn_moves_for_dice_in_order(board, [die_1, die_2]),
-        generate_all_possibly_legal_turn_moves_for_dice_in_order(board, [die_2, die_1])
-      )
-
-    # In backgammon, you must always use as much of your dice as possible, hence we must do an additional (annoying)
-    # check to make sure they made the largest move possible.
-    largest_move_size =
-      CheckerMove.checker_moves_size(
-        Enum.max_by(all_possibly_legal_turn_moves, &CheckerMove.checker_moves_size/1)
-      )
-
-    MapSet.filter(
-      all_possibly_legal_turn_moves,
-      &(CheckerMove.checker_moves_size(&1) == largest_move_size)
+  # Gone through one ordered die roll, save all possible moves and continue on the other.
+  defp temp_function(
+         board,
+         [[], other_ordered_roll_segment],
+         list_of_board_and_moves,
+         all_possibly_legal_turn_moves_acc
+       ) do
+    temp_function(
+      board,
+      [other_ordered_roll_segment],
+      [],
+      all_possibly_legal_turn_moves_acc
+      |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
     )
   end
 
-  # TODO Doc.
-  # Returns MapSet of
-  defp generate_all_possibly_legal_turn_moves_for_dice_in_order(board, [die_1, die_2]) do
-    all_move_and_board_combos_for_die_1 = generate_all_move_and_board_combos_for_die(board, die_1)
-
-    if(Enum.empty?(all_move_and_board_combos_for_die_1)) do
-      # If you cannot move at all, return an empty set of moves.
-      MapSet.new()
+  defp temp_function(
+         board,
+         [[die_segment | remaining_die_segments] | other_ordered_roll_segment],
+         list_of_board_and_moves,
+         all_possibly_legal_turn_moves_acc
+       ) do
+    if(list_of_board_and_moves == []) do
+      # The first checker move for a series of segments, move it on the board and recurse.
+      temp_function(
+        board,
+        [remaining_die_segments] ++ other_ordered_roll_segment,
+        generate_all_move_and_board_combos_for_die_segment(board, die_segment),
+        all_possibly_legal_turn_moves_acc
+      )
     else
-      Enum.reduce(
-        all_move_and_board_combos_for_die_1,
-        MapSet.new(),
-        fn {board_after_move_1, move_1}, checker_moves_accumulator ->
-          all_checker_moves_with_die_2_second =
-            generate_all_move_and_board_combos_for_die(board_after_move_1, die_2)
-
-          if(Enum.empty?(all_checker_moves_with_die_2_second)) do
-            # If you cannot play the second die, simply save the one move to the move accumulator.
-            MapSet.put(checker_moves_accumulator, [move_1])
-          else
-            Enum.reduce(
-              all_checker_moves_with_die_2_second,
-              checker_moves_accumulator,
-              fn {_board_after_move_2, move_2}, checker_moves_accumulator ->
-                MapSet.put(checker_moves_accumulator, [move_1, move_2])
-              end
+      # The second+ checker move for a series of segments, we must move it on all the possible boards and moves up
+      # to this point, and, as always, recurse.
+      new_list_of_board_and_moves =
+        Enum.reduce(list_of_board_and_moves, [], fn {board_after_moves_so_far, moves_so_far},
+                                                    new_list_of_board_and_moves_acc ->
+          # Get all next moves.
+          all_next_board_and_next_move_combos =
+            generate_all_move_and_board_combos_for_die_segment(
+              board_after_moves_so_far,
+              die_segment
             )
-          end
-        end
+
+          # Append these next moves to existing move sequences, as we want the full chain of moves to get to any given
+          # board.
+          all_next_board_and_full_move_sequence_combos =
+            Enum.map(all_next_board_and_next_move_combos, fn {board_after_next_move, next_move} ->
+              {board_after_next_move, moves_so_far ++ next_move}
+            end)
+
+          # Add these combos to our accumulator.
+          all_next_board_and_full_move_sequence_combos ++ new_list_of_board_and_moves_acc
+        end)
+
+      temp_function(
+        board,
+        [remaining_die_segments] ++ other_ordered_roll_segment,
+        new_list_of_board_and_moves,
+        all_possibly_legal_turn_moves_acc
       )
     end
   end
 
   # TODO DOC.
-  def generate_all_move_and_board_combos_for_die(board, die) do
+  def generate_all_move_and_board_combos_for_die_segment(board, die) do
     possibly_movable_checker_locations =
       get_player_to_move_possibly_movable_checker_locations(board)
 
@@ -162,7 +184,7 @@ defmodule Board do
           # checker_destination == 0 &&
 
           true ->
-            [{do_legal_checker_moves(board, [checker_move]), checker_move}] ++ result_acc
+            [{do_legal_checker_moves(board, [checker_move]), [checker_move]}] ++ result_acc
         end
       end
     )
@@ -231,6 +253,28 @@ defmodule Board do
   end
 
   # Misc helpers
+
+  defp insert_move_sequences_into_turn_moves_set(
+         turn_moves_set = %MapSet{},
+         list_of_board_and_moves
+       ) do
+    Enum.reduce(list_of_board_and_moves, turn_moves_set, fn {_board, move_sequence},
+                                                            turn_moves_set_acc ->
+      MapSet.put(turn_moves_set_acc, move_sequence)
+    end)
+  end
+
+  defp keep_only_largest_turn_moves_in_turn_moves_set(turn_moves_set = %MapSet{}) do
+    largest_move_size =
+      CheckerMove.checker_moves_size(
+        Enum.max_by(turn_moves_set, &CheckerMove.checker_moves_size/1)
+      )
+
+    MapSet.filter(
+      turn_moves_set,
+      &(CheckerMove.checker_moves_size(&1) == largest_move_size)
+    )
+  end
 
   defp update_player_to_move_checker_count_by_point(
          board = %Board{},
