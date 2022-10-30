@@ -35,9 +35,18 @@ defmodule GammonGroundsTest do
       assert legal_turn_move?(board, legal_double_move, dice) == true
     end
 
-    test "Empty turn is legal when there is no move" do
+    test "Empty turn is legal when there is no move because you are blocked by opponent" do
       board = new_board({:manual_position, player_1(), %{6 => 2}, %{24 => 2}})
       dice = [5, 5]
+
+      legal_no_op_turn_move = []
+
+      assert legal_turn_move?(board, legal_no_op_turn_move, dice) == true
+    end
+
+    test "Empty turn is legal when there is no move because you cannot enter the board" do
+      board = new_board({:manual_position, player_1(), %{25 => 2, 12 => 2}, %{1 => 2, 6 => 2}})
+      dice = [6, 1]
 
       legal_no_op_turn_move = []
 
