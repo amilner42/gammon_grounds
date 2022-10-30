@@ -18,6 +18,13 @@ defmodule GammonGroundsTest do
           true
         ],
         [
+          "A bad opening 6-5 play is also legal",
+          new_board(),
+          [6, 5],
+          [new_checker_move(8, 2), new_checker_move(8, 3)],
+          true
+        ],
+        [
           "It is illegal to use one die when you can use both",
           new_board(),
           [6, 5],

@@ -43,11 +43,9 @@ defmodule Board do
         turn_move,
         dice_roll
       ) do
-    all_legal_turn_moves = generate_all_legal_turn_moves(board, dice_roll)
+    all_legal_turn_moves = generate_all_canonical_legal_turn_moves(board, dice_roll)
 
-    IO.inspect(all_legal_turn_moves)
-
-    MapSet.member?(all_legal_turn_moves, turn_move)
+    MapSet.member?(all_legal_turn_moves, turn_move_to_canonical_form(turn_move))
   end
 
   @doc """
@@ -66,14 +64,14 @@ defmodule Board do
 
   # Module Private Functions
 
-  defp generate_all_legal_turn_moves(board, [die_1, die_1]),
-    do: generate_all_legal_turn_moves(board, [[die_1, die_1, die_1, die_1]], [], MapSet.new())
+  defp generate_all_canonical_legal_turn_moves(board, [die_1, die_1]),
+    do: generate_all_canonical_legal_turn_moves(board, [[die_1, die_1, die_1, die_1]], [], MapSet.new())
 
-  defp generate_all_legal_turn_moves(board, [die_1, die_2]),
-    do: generate_all_legal_turn_moves(board, [[die_1, die_2], [die_2, die_1]], [], MapSet.new())
+  defp generate_all_canonical_legal_turn_moves(board, [die_1, die_2]),
+    do: generate_all_canonical_legal_turn_moves(board, [[die_1, die_2], [die_2, die_1]], [], MapSet.new())
 
   # Base case.
-  defp generate_all_legal_turn_moves(
+  defp generate_all_canonical_legal_turn_moves(
          _board,
          _dice_segments = [[]],
          list_of_board_and_moves,
@@ -86,13 +84,13 @@ defmodule Board do
   end
 
   # Gone through one ordered die roll, save all possible moves and continue on the other.
-  defp generate_all_legal_turn_moves(
+  defp generate_all_canonical_legal_turn_moves(
          board,
          [[], other_ordered_roll_segment],
          list_of_board_and_moves,
          all_possibly_legal_turn_moves_acc
        ) do
-    generate_all_legal_turn_moves(
+    generate_all_canonical_legal_turn_moves(
       board,
       [other_ordered_roll_segment],
       [],
@@ -101,7 +99,7 @@ defmodule Board do
     )
   end
 
-  defp generate_all_legal_turn_moves(
+  defp generate_all_canonical_legal_turn_moves(
          board,
          [[die_segment | remaining_die_segments] | other_ordered_roll_segment],
          list_of_board_and_moves,
@@ -109,7 +107,7 @@ defmodule Board do
        ) do
     if(list_of_board_and_moves == []) do
       # The first checker move for a series of segments, move it on the board and recurse.
-      generate_all_legal_turn_moves(
+      generate_all_canonical_legal_turn_moves(
         board,
         [remaining_die_segments] ++ other_ordered_roll_segment,
         generate_all_move_and_board_combos_for_die_segment(board, die_segment),
@@ -140,7 +138,7 @@ defmodule Board do
           all_next_board_and_full_move_sequence_combos ++ new_list_of_board_and_moves_acc
         end)
 
-      generate_all_legal_turn_moves(
+      generate_all_canonical_legal_turn_moves(
         board,
         [remaining_die_segments] ++ other_ordered_roll_segment,
         new_list_of_board_and_moves,
@@ -153,7 +151,7 @@ defmodule Board do
   #
   # NOTE: that the single checker move is kept in a list, this tends to be helpful for recursively building up a list
   #       of moves.
-  def generate_all_move_and_board_combos_for_die_segment(board, die_segment, maybe_last_checker_move \\ nil) do
+  defp generate_all_move_and_board_combos_for_die_segment(board, die_segment, maybe_last_checker_move \\ nil) do
     max_point_to_move_from = (maybe_last_checker_move && maybe_last_checker_move.from) || 25
     # We use the `max_point_to_move_from` to avoid generating duplicates of turn moves such as:
     #   - [[24, 22], [18, 12]]
@@ -277,7 +275,7 @@ defmodule Board do
     end)
   end
 
-  def insert_no_op_move_if_no_legal_moves(turn_moves_set = %MapSet{}) do
+  defp insert_no_op_move_if_no_legal_moves(turn_moves_set = %MapSet{}) do
     if(Enum.empty?(turn_moves_set)) do
       MapSet.new([[]])
     else
@@ -383,6 +381,10 @@ defmodule Board do
     25 - point
   end
 
-  def change_player_to_move(board = %Board{player_to_move: @player_1}), do: %{board | player_to_move: @player_2}
-  def change_player_to_move(board = %Board{player_to_move: @player_2}), do: %{board | player_to_move: @player_1}
+  defp change_player_to_move(board = %Board{player_to_move: @player_1}), do: %{board | player_to_move: @player_2}
+  defp change_player_to_move(board = %Board{player_to_move: @player_2}), do: %{board | player_to_move: @player_1}
+
+  defp turn_move_to_canonical_form(turn_move) do
+    Enum.sort_by(turn_move, fn %CheckerMove{from: from, to: to} -> from * -10 - to end)
+  end
 end
