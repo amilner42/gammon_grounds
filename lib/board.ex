@@ -52,9 +52,6 @@ defmodule Board do
       ) do
     all_legal_turn_moves = generate_all_legal_turn_moves(board, dice_roll)
 
-    IO.inspect(all_legal_turn_moves)
-    IO.inspect(turn_move)
-
     MapSet.member?(all_legal_turn_moves, turn_move)
   end
 
@@ -90,6 +87,7 @@ defmodule Board do
     all_possibly_legal_turn_moves_acc
     |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
     |> keep_only_largest_turn_moves_in_turn_moves_set()
+    |> insert_no_op_move_if_no_legal_moves()
   end
 
   # Gone through one ordered die roll, save all possible moves and continue on the other.
@@ -269,6 +267,14 @@ defmodule Board do
     Enum.reduce(list_of_board_and_moves, turn_moves_set, fn {_board, move_sequence}, turn_moves_set_acc ->
       MapSet.put(turn_moves_set_acc, move_sequence)
     end)
+  end
+
+  def insert_no_op_move_if_no_legal_moves(turn_moves_set = %MapSet{}) do
+    if(Enum.empty?(turn_moves_set)) do
+      MapSet.new([[]])
+    else
+      turn_moves_set
+    end
   end
 
   defp keep_only_largest_turn_moves_in_turn_moves_set(turn_moves_set = %MapSet{}) do
