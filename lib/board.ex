@@ -52,11 +52,7 @@ defmodule Board do
   @doc """
   Attempts to make a series of checker moves (turn_move), returning a Result with a new Board if successful.
   """
-  def do_turn_move(
-        board = %Board{},
-        turn_move,
-        dice_roll
-      ) do
+  def do_turn_move(board = %Board{}, turn_move, dice_roll) do
     if(legal_turn_move?(board, turn_move, dice_roll)) do
       {:ok,
        board
@@ -69,11 +65,8 @@ defmodule Board do
 
   # Module Private Functions
 
-  defp generate_all_legal_turn_moves(board, [die_1, die_1]),
-    do: temp_function(board, [[die_1, die_1, die_1, die_1]])
-
-  defp generate_all_legal_turn_moves(board, [die_1, die_2]),
-    do: temp_function(board, [[die_1, die_2], [die_2, die_1]])
+  defp generate_all_legal_turn_moves(board, [die_1, die_1]), do: temp_function(board, [[die_1, die_1, die_1, die_1]])
+  defp generate_all_legal_turn_moves(board, [die_1, die_2]), do: temp_function(board, [[die_1, die_2], [die_2, die_1]])
 
   defp temp_function(
          board,
@@ -84,12 +77,7 @@ defmodule Board do
 
   # Exhausted the dice segments, just filter out moves that don't use as much of the roll as possible. This is a
   # a rule in the game of backgammon.
-  defp temp_function(
-         _board,
-         [[]],
-         list_of_board_and_moves,
-         all_possibly_legal_turn_moves_acc
-       ) do
+  defp temp_function(_board, [[]], list_of_board_and_moves, all_possibly_legal_turn_moves_acc) do
     all_possibly_legal_turn_moves_acc
     |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
     |> keep_only_largest_turn_moves_in_turn_moves_set()
@@ -160,8 +148,7 @@ defmodule Board do
 
   # TODO DOC.
   def generate_all_move_and_board_combos_for_die_segment(board, die) do
-    possibly_movable_checker_locations =
-      get_player_to_move_possibly_movable_checker_locations(board)
+    possibly_movable_checker_locations = get_player_to_move_possibly_movable_checker_locations(board)
 
     Enum.reduce(
       possibly_movable_checker_locations,
@@ -208,9 +195,7 @@ defmodule Board do
 
   defp player_to_move_has_all_checkers_in_home_board?(board, point_index \\ 25)
 
-  defp player_to_move_has_all_checkers_in_home_board?(_board, 6) do
-    true
-  end
+  defp player_to_move_has_all_checkers_in_home_board?(_board, 6), do: true
 
   defp player_to_move_has_all_checkers_in_home_board?(board, point_index) do
     if(player_to_move_has_any_checkers_on_point(board, point_index)) do
@@ -254,21 +239,14 @@ defmodule Board do
 
   # Misc helpers
 
-  defp insert_move_sequences_into_turn_moves_set(
-         turn_moves_set = %MapSet{},
-         list_of_board_and_moves
-       ) do
-    Enum.reduce(list_of_board_and_moves, turn_moves_set, fn {_board, move_sequence},
-                                                            turn_moves_set_acc ->
+  defp insert_move_sequences_into_turn_moves_set(turn_moves_set = %MapSet{}, list_of_board_and_moves) do
+    Enum.reduce(list_of_board_and_moves, turn_moves_set, fn {_board, move_sequence}, turn_moves_set_acc ->
       MapSet.put(turn_moves_set_acc, move_sequence)
     end)
   end
 
   defp keep_only_largest_turn_moves_in_turn_moves_set(turn_moves_set = %MapSet{}) do
-    largest_move_size =
-      CheckerMove.checker_moves_size(
-        Enum.max_by(turn_moves_set, &CheckerMove.checker_moves_size/1)
-      )
+    largest_move_size = CheckerMove.checker_moves_size(Enum.max_by(turn_moves_set, &CheckerMove.checker_moves_size/1))
 
     MapSet.filter(
       turn_moves_set,
@@ -276,23 +254,18 @@ defmodule Board do
     )
   end
 
-  defp update_player_to_move_checker_count_by_point(
-         board = %Board{},
-         checker_count_by_point_updater
-       ) do
+  defp update_player_to_move_checker_count_by_point(board = %Board{}, checker_count_by_point_updater) do
     case(board.player_to_move) do
       @player_1 ->
         %{
           board
-          | player_1_checker_count_by_point:
-              checker_count_by_point_updater.(board.player_1_checker_count_by_point)
+          | player_1_checker_count_by_point: checker_count_by_point_updater.(board.player_1_checker_count_by_point)
         }
 
       @player_2 ->
         %{
           board
-          | player_2_checker_count_by_point:
-              checker_count_by_point_updater.(board.player_2_checker_count_by_point)
+          | player_2_checker_count_by_point: checker_count_by_point_updater.(board.player_2_checker_count_by_point)
         }
     end
   end
@@ -363,11 +336,6 @@ defmodule Board do
     25 - point
   end
 
-  def change_player_to_move(board = %Board{player_to_move: @player_1}) do
-    %{board | player_to_move: @player_2}
-  end
-
-  def change_player_to_move(board = %Board{player_to_move: @player_2}) do
-    %{board | player_to_move: @player_1}
-  end
+  def change_player_to_move(board = %Board{player_to_move: @player_1}), do: %{board | player_to_move: @player_2}
+  def change_player_to_move(board = %Board{player_to_move: @player_2}), do: %{board | player_to_move: @player_1}
 end

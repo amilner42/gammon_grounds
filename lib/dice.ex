@@ -6,18 +6,4 @@ defmodule Dice do
   def double?([die_1, die_2]) do
     die_1 == die_2
   end
-
-  def convert_roll_to_segments([die_1, die_2]) do
-    cond do
-      # In gammon, doubles give you double the moves.
-      die_1 == die_2 ->
-        [die_1, die_1, die_1, die_1]
-
-      die_1 > die_2 ->
-        [die_1, die_2]
-
-      true ->
-        [die_2, die_1]
-    end
-  end
 end
