@@ -121,14 +121,12 @@ defmodule Board do
       new_list_of_board_and_moves =
         Enum.reduce(list_of_board_and_moves, [], fn {board_after_moves_so_far, moves_so_far},
                                                     new_list_of_board_and_moves_acc ->
-          %CheckerMove{from: last_move_from} = List.last(moves_so_far)
-
           # Get all next moves.
           all_next_board_and_next_move_combos =
             generate_all_move_and_board_combos_for_die_segment(
               board_after_moves_so_far,
               die_segment,
-              last_move_from
+              List.last(moves_so_far)
             )
 
           # Append these next moves to existing move sequences, as we want the full chain of moves to get to any given
@@ -155,7 +153,11 @@ defmodule Board do
   #
   # NOTE: that the single checker move is kept in a list, this tends to be helpful for recursively building up a list
   #       of moves.
-  def generate_all_move_and_board_combos_for_die_segment(board, die_segment, max_point_to_move_from \\ 25) do
+  def generate_all_move_and_board_combos_for_die_segment(board, die_segment, maybe_last_checker_move \\ nil) do
+    max_point_to_move_from = (maybe_last_checker_move && maybe_last_checker_move.from) || 25
+    # We use the `max_point_to_move_from` to avoid generating duplicates of turn moves such as:
+    #   - [[24, 22], [18, 12]]
+    #   - [[18, 12], [24, 12]]
     possibly_movable_checker_locations =
       get_player_to_move_possibly_movable_checker_locations(board, max_point_to_move_from)
 
@@ -167,6 +169,13 @@ defmodule Board do
         checker_move = %CheckerMove{from: checker_location, to: checker_destination}
 
         cond do
+          # We use this case to avoid generating duplicates of turn moves such as:
+          #  - [[24, 23], [24, 22]]
+          #  - [[24, 22], [24, 23]]
+          maybe_last_checker_move != nil && maybe_last_checker_move.from == checker_location &&
+              checker_destination > maybe_last_checker_move.to ->
+            result_acc
+
           # Cannot move on an opponents point
           player_to_move_point_taken_by_opponent?(board, checker_destination) ->
             result_acc
