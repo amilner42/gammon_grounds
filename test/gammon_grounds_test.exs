@@ -6,92 +6,82 @@ defmodule GammonGroundsTest do
   use ExUnit.Case
   doctest GammonGrounds
 
+  setup_all do
+    %{
+      list_of_tests_as_data: [
+        [
+          "A standard opening 6-5 play is legal",
+          new_board(),
+          [6, 5],
+          [new_checker_move(24, 18), new_checker_move(18, 13)],
+          true
+        ],
+        [
+          "It is illegal to use one die when you can use both",
+          new_board(),
+          [6, 5],
+          [new_checker_move(24, 18)],
+          false
+        ],
+        # This is contrived as you can never get a double on the first roll, but, it's all the same for testing.
+        [
+          "A legal double die turn move is legal",
+          new_board(),
+          [6, 6],
+          [new_checker_move(24, 18), new_checker_move(24, 18), new_checker_move(13, 7), new_checker_move(13, 7)],
+          true
+        ],
+        [
+          "Empty turn is legal when there is no move because you are blocked by opponent",
+          new_board({:manual_position, player_1(), %{6 => 2}, %{24 => 2}}),
+          [5, 5],
+          [],
+          true
+        ],
+        [
+          "Empty turn is legal when there is no move because you cannot enter the board",
+          new_board({:manual_position, player_1(), %{25 => 2, 12 => 2}, %{1 => 2, 6 => 2}}),
+          [6, 1],
+          [],
+          true
+        ],
+        [
+          "You can bear off checkers when all checkers are in the homeboard",
+          new_board({:manual_position, player_1(), %{6 => 2, 5 => 1}, %{24 => 2}}),
+          [6, 5],
+          [new_checker_move(6, 0), new_checker_move(5, 0)],
+          true
+        ],
+        [
+          "You cannot bear off a checker when there is a checker outside the homeboard",
+          new_board({:manual_position, player_1(), %{7 => 3, 6 => 2}, %{24 => 2}}),
+          [6, 1],
+          [new_checker_move(6, 0), new_checker_move(6, 5)],
+          false
+        ],
+        [
+          "You cannot bear off a checker when there is a checker left on a greater square",
+          new_board({:manual_position, player_1(), %{6 => 1, 4 => 4}, %{24 => 2}}),
+          [5, 5],
+          [new_checker_move(4, 0), new_checker_move(4, 0), new_checker_move(4, 0), new_checker_move(4, 0)],
+          false
+        ]
+      ]
+    }
+  end
+
   describe "#legal_move?" do
-    test "A standard opening 6-5 play is legal" do
-      board = new_board()
-      dice = [6, 5]
-      standard_opening_6_5_play = [new_checker_move(24, 18), new_checker_move(18, 13)]
+    test "Test as data defined in list_of_tests_as_data", %{list_of_tests_as_data: list_of_tests_as_data} do
+      {actual_results, expected_results} =
+        Enum.reduce(list_of_tests_as_data, {%{}, %{}}, fn [test_description, board, dice, turn_move, is_legal],
+                                                          {actual_results, expected_results} ->
+          {
+            Map.put(actual_results, test_description, legal_turn_move?(board, turn_move, dice)),
+            Map.put(expected_results, test_description, is_legal)
+          }
+        end)
 
-      assert legal_turn_move?(board, standard_opening_6_5_play, dice) == true
+      assert actual_results == expected_results
     end
-
-    test "It is illegal to use one die when you can use both" do
-      board = new_board()
-      dice = [6, 5]
-      illegal_single_dice_move = [new_checker_move(24, 18)]
-
-      assert legal_turn_move?(board, illegal_single_dice_move, dice) == false
-    end
-
-    test "A legal double die turn move is legal" do
-      # This is contrived as you can never get a double on the first roll, but, it's all the same for testing.
-      board = new_board()
-      dice = [6, 6]
-
-      legal_double_move = [
-        new_checker_move(24, 18),
-        new_checker_move(24, 18),
-        new_checker_move(13, 7),
-        new_checker_move(13, 7)
-      ]
-
-      assert legal_turn_move?(board, legal_double_move, dice) == true
-    end
-
-    test "Empty turn is legal when there is no move because you are blocked by opponent" do
-      board = new_board({:manual_position, player_1(), %{6 => 2}, %{24 => 2}})
-      dice = [5, 5]
-
-      legal_no_op_turn_move = []
-
-      assert legal_turn_move?(board, legal_no_op_turn_move, dice) == true
-    end
-
-    test "Empty turn is legal when there is no move because you cannot enter the board" do
-      board = new_board({:manual_position, player_1(), %{25 => 2, 12 => 2}, %{1 => 2, 6 => 2}})
-      dice = [6, 1]
-
-      legal_no_op_turn_move = []
-
-      assert legal_turn_move?(board, legal_no_op_turn_move, dice) == true
-    end
-
-    test "You can bear off checkers when all checkers are in the homeboard" do
-      board = new_board({:manual_position, player_1(), %{6 => 2, 5 => 1}, %{24 => 2}})
-      dice = [6, 5]
-
-      legal_bear_off_turn_move = [
-        new_checker_move(6, 0),
-        new_checker_move(5, 0)
-      ]
-
-      assert legal_turn_move?(board, legal_bear_off_turn_move, dice) == true
-    end
-  end
-
-  test "You cannot bear off a checker when there is a checker outside the homeboard" do
-    board = new_board({:manual_position, player_1(), %{7 => 3, 6 => 2}, %{24 => 2}})
-    dice = [6, 1]
-
-    illegal_bear_off_turn_move = [
-      new_checker_move(6, 0),
-      new_checker_move(6, 5)
-    ]
-
-    assert legal_turn_move?(board, illegal_bear_off_turn_move, dice) == false
-  end
-
-  test "You cannot bear off a checker when there is a checker left on a greater square" do
-    board = new_board({:manual_position, player_1(), %{6 => 1, 4 => 4}, %{24 => 2}})
-    dice = [5, 5]
-
-    illegal_bear_off_turn_move = [
-      new_checker_move(4, 0),
-      new_checker_move(4, 0),
-      new_checker_move(4, 0),
-      new_checker_move(4, 0)
-    ]
-
-    assert legal_turn_move?(board, illegal_bear_off_turn_move, dice) == false
   end
 end
