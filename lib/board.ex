@@ -71,9 +71,13 @@ defmodule Board do
   defp generate_all_legal_turn_moves(board, [die_1, die_2]),
     do: generate_all_legal_turn_moves(board, [[die_1, die_2], [die_2, die_1]], [], MapSet.new())
 
-  # Exhausted the dice segments, just filter out moves that don't use as much of the roll as possible. This is a
-  # a rule in the game of backgammon.
-  defp generate_all_legal_turn_moves(_board, [[]], list_of_board_and_moves, all_possibly_legal_turn_moves_acc) do
+  # Base case.
+  defp generate_all_legal_turn_moves(
+         _board,
+         _dice_segments = [[]],
+         list_of_board_and_moves,
+         all_possibly_legal_turn_moves_acc
+       ) do
     all_possibly_legal_turn_moves_acc
     |> insert_move_sequences_into_turn_moves_set(list_of_board_and_moves)
     |> keep_only_largest_turn_moves_in_turn_moves_set()
@@ -142,15 +146,18 @@ defmodule Board do
     end
   end
 
-  # TODO DOC.
-  def generate_all_move_and_board_combos_for_die_segment(board, die) do
+  # Result will be of the shape: [{new_board, [single_checker_move_played]}, ...].
+  #
+  # NOTE: that the single checker move is kept in a list, this tends to be helpful for recursively building up a list
+  #       of moves.
+  def generate_all_move_and_board_combos_for_die_segment(board, die_segment) do
     possibly_movable_checker_locations = get_player_to_move_possibly_movable_checker_locations(board)
 
     Enum.reduce(
       possibly_movable_checker_locations,
       [],
       fn checker_location, result_acc ->
-        checker_destination = Enum.max([0, checker_location - die])
+        checker_destination = Enum.max([0, checker_location - die_segment])
         checker_move = %CheckerMove{from: checker_location, to: checker_destination}
 
         cond do
