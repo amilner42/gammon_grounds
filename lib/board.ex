@@ -1,10 +1,3 @@
-# TODO:
-# - sanity tests
-
-# Is this easy? I can also just manually sort and delete dups.
-# - more effecient with move creation, only search from highest move to lowest move to avoid dups of:
-#   [ 24 -> 23, 6 - 3 ] and [6 -> 3, 24 -> 23 ]
-
 defmodule Board do
   @player_1 :player_1
   @player_2 :player_2
@@ -51,6 +44,8 @@ defmodule Board do
         dice_roll
       ) do
     all_legal_turn_moves = generate_all_legal_turn_moves(board, dice_roll)
+
+    IO.inspect(all_legal_turn_moves)
 
     MapSet.member?(all_legal_turn_moves, turn_move)
   end
@@ -126,11 +121,14 @@ defmodule Board do
       new_list_of_board_and_moves =
         Enum.reduce(list_of_board_and_moves, [], fn {board_after_moves_so_far, moves_so_far},
                                                     new_list_of_board_and_moves_acc ->
+          %CheckerMove{from: last_move_from} = List.last(moves_so_far)
+
           # Get all next moves.
           all_next_board_and_next_move_combos =
             generate_all_move_and_board_combos_for_die_segment(
               board_after_moves_so_far,
-              die_segment
+              die_segment,
+              last_move_from
             )
 
           # Append these next moves to existing move sequences, as we want the full chain of moves to get to any given
@@ -157,8 +155,9 @@ defmodule Board do
   #
   # NOTE: that the single checker move is kept in a list, this tends to be helpful for recursively building up a list
   #       of moves.
-  def generate_all_move_and_board_combos_for_die_segment(board, die_segment) do
-    possibly_movable_checker_locations = get_player_to_move_possibly_movable_checker_locations(board)
+  def generate_all_move_and_board_combos_for_die_segment(board, die_segment, max_point_to_move_from \\ 25) do
+    possibly_movable_checker_locations =
+      get_player_to_move_possibly_movable_checker_locations(board, max_point_to_move_from)
 
     Enum.reduce(
       possibly_movable_checker_locations,
@@ -306,17 +305,20 @@ defmodule Board do
     end
   end
 
-  defp get_player_to_move_possibly_movable_checker_locations(board = %Board{}) do
+  defp get_player_to_move_possibly_movable_checker_locations(board = %Board{}, max_point_to_move_from) do
     player_to_move_checker_count_by_points = get_player_to_move_checker_count_by_points(board)
 
-    if(player_to_move_checker_count_by_points[25] != nil) do
-      # You must move off the bar first.
-      [25]
-    else
-      # You cannot move a checker that is already off the board.
-      Map.delete(player_to_move_checker_count_by_points, 0)
-      |> Map.keys()
-    end
+    points =
+      if(player_to_move_checker_count_by_points[25] != nil) do
+        # You must move off the bar first.
+        [25]
+      else
+        # You cannot move a checker that is already off the board.
+        Map.delete(player_to_move_checker_count_by_points, 0)
+        |> Map.keys()
+      end
+
+    Enum.filter(points, &(&1 <= max_point_to_move_from))
   end
 
   defp get_player_to_move_checker_count_by_points(%Board{
