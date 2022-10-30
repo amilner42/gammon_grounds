@@ -52,10 +52,12 @@ defmodule Board do
   Attempts to make a series of checker moves (turn_move), returning a Result with a new Board if successful.
   """
   def do_turn_move(board = %Board{}, turn_move, dice_roll) do
-    if(legal_turn_move?(board, turn_move, dice_roll)) do
+    canonical_turn_move = turn_move_to_canonical_form(turn_move)
+
+    if(legal_turn_move?(board, canonical_turn_move, dice_roll)) do
       {:ok,
        board
-       |> do_legal_checker_moves(turn_move)
+       |> do_legal_checker_moves(canonical_turn_move)
        |> change_player_to_move}
     else
       {:error, :illegal_move}
