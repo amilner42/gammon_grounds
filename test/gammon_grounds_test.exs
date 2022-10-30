@@ -8,6 +8,7 @@ defmodule GammonGroundsTest do
 
   setup_all do
     %{
+      # Format: [[test_description, board, dice, turn_move, is_legal_expectation], ...]
       list_of_tests_as_data: [
         [
           "A standard opening 6-5 play is legal",
