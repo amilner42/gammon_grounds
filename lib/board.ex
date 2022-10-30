@@ -1,7 +1,5 @@
 # TODO:
-# - custom positions
 # - sanity tests
-# - no bearing off if a greater point is available but cannot move
 
 # Is this easy? I can also just manually sort and delete dups.
 # - more effecient with move creation, only search from highest move to lowest move to avoid dups of:
@@ -22,16 +20,27 @@ defmodule Board do
   themselves, as is standard for backgammon, for instance, you will notice both players start with 2 points on their
   respective 24-point.
   """
-  def new(position \\ :standard_starting_position, player_to_move \\ @player_1) do
-    case position do
-      :standard_starting_position ->
+  def new(init_board_spec \\ {:standard_starting_position, @player_1}) do
+    case init_board_spec do
+      {:standard_starting_position, player_to_move} ->
         %Board{
           player_1_checker_count_by_point: %{24 => 2, 13 => 5, 8 => 3, 6 => 5},
           player_2_checker_count_by_point: %{24 => 2, 13 => 5, 8 => 3, 6 => 5},
           player_to_move: player_to_move
         }
+
+      {:manual_position, player_to_move, player_1_checker_count_by_point, player_2_checker_count_by_point} ->
+        %Board{
+          player_1_checker_count_by_point: player_1_checker_count_by_point,
+          player_2_checker_count_by_point: player_2_checker_count_by_point,
+          player_to_move: player_to_move
+        }
     end
   end
+
+  # Access to player atoms constants outside module.
+  def player_1(), do: @player_1
+  def player_2(), do: @player_2
 
   @doc """
   Returns true if the turn move could be played on this board for this dice roll, otherwise returns false.
@@ -169,9 +178,17 @@ defmodule Board do
           checker_destination == 0 && !player_to_move_has_all_checkers_in_home_board?(board) ->
             result_acc
 
-          # Add case for bearing off where you cannot move the 6 point because you are blocked on the 1 but
-          # you could move the 5 point. This is illegal.
-          # checker_destination == 0 &&
+          # You cannot bear off a checker on a point if there are checkers in the homeboard on a greater point and the
+          # die is greater than the from-location.
+          #
+          # Eg. If you have 1 checker on both points 6 and 2, and your opponent has made your 1 point, and you roll a
+          #     double 5, you cannot move (you cannot bear off the 1).
+          checker_destination == 0 && checker_location != 6 && checker_location - checker_destination != die_segment &&
+              player_to_move_has_checker_on_point?(
+                board,
+                (checker_location + 1)..6
+              ) ->
+            result_acc
 
           true ->
             [{do_legal_checker_moves(board, [checker_move]), [checker_move]}] ++ result_acc
@@ -240,6 +257,12 @@ defmodule Board do
     opponent_checker_count_on_point != nil && opponent_checker_count_on_point >= 2
   end
 
+  defp player_to_move_has_checker_on_point?(board = %Board{}, point_range = %Range{}) do
+    player_to_move_checker_count_by_point = get_player_to_move_checker_count_by_points(board)
+
+    Enum.any?(point_range, &(player_to_move_checker_count_by_point[&1] != nil))
+  end
+
   # Misc helpers
 
   defp insert_move_sequences_into_turn_moves_set(turn_moves_set = %MapSet{}, list_of_board_and_moves) do
@@ -249,12 +272,16 @@ defmodule Board do
   end
 
   defp keep_only_largest_turn_moves_in_turn_moves_set(turn_moves_set = %MapSet{}) do
-    largest_move_size = CheckerMove.checker_moves_size(Enum.max_by(turn_moves_set, &CheckerMove.checker_moves_size/1))
+    if(Enum.empty?(turn_moves_set)) do
+      turn_moves_set
+    else
+      largest_move_size = CheckerMove.checker_moves_size(Enum.max_by(turn_moves_set, &CheckerMove.checker_moves_size/1))
 
-    MapSet.filter(
-      turn_moves_set,
-      &(CheckerMove.checker_moves_size(&1) == largest_move_size)
-    )
+      MapSet.filter(
+        turn_moves_set,
+        &(CheckerMove.checker_moves_size(&1) == largest_move_size)
+      )
+    end
   end
 
   defp update_player_to_move_checker_count_by_point(board = %Board{}, checker_count_by_point_updater) do
